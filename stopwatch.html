@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>코엑스 스탑워치</title>
+<style>
+  :root {
+    --night: #070a12;
+    --glass: rgba(255, 255, 255, 0.05);
+    --glass-line: rgba(255, 255, 255, 0.12);
+    --text: #eef2f8;
+    --muted: #8a93a6;
+    --line2: #00a84d;          /* 지하철 2호선 */
+    --led-a: #3df2ff;          /* K-POP 스퀘어 LED */
+    --led-b: #7b5cff;
+    --led-c: #ff4fa3;
+    --wood: #b07a4a;           /* 별마당 도서관 */
+    --wood-dark: #6e4526;
+    --best: #3ee08a;
+    --worst: #ff6b81;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 16px;
+    color: var(--text);
+    font-family: "Pretendard", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    background:
+      radial-gradient(1200px 500px at 50% -10%, rgba(123, 92, 255, 0.25), transparent 60%),
+      radial-gradient(800px 400px at 100% 100%, rgba(61, 242, 255, 0.12), transparent 60%),
+      linear-gradient(180deg, #0b1020 0%, var(--night) 70%);
+    background-color: var(--night);
+  }
+
+  .wrap { width: 100%; max-width: 460px; }
+
+  /* ── 삼성역 역명판 ── */
+  .station {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    background: #fff;
+    color: #1a1a1a;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 18px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  }
+  .station .side {
+    font-size: 12px;
+    color: #555;
+    padding: 10px 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .station .side.next { text-align: right; }
+  .station .center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--line2);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 999px;
+    margin: 6px 0;
+  }
+  .station .num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--line2);
+    font-weight: 800;
+    font-size: 14px;
+    display: grid;
+    place-items: center;
+  }
+  .station .name { font-weight: 800; font-size: 18px; letter-spacing: 1px; }
+  .station .name small { font-weight: 500; font-size: 11px; opacity: .85; margin-left: 4px; }
+
+  /* ── 메인 카드 (코엑스 유리 파사드) ── */
+  .card {
+    position: relative;
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    border-radius: 20px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+  }
+
+  .brand {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .brand b { font-size: 22px; letter-spacing: 6px; font-weight: 800; }
+  .brand span { font-size: 11px; color: var(--muted); letter-spacing: 2px; }
+
+  /* ── K-POP 스퀘어 LED 전광판 ── */
+  .led {
+    position: relative;
+    border-radius: 12px;
+    padding: 34px 12px;
+    background: #02040a;
+    border: 6px solid #1a1f2c;
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9), 0 0 40px rgba(123, 92, 255, 0.25);
+    overflow: hidden;
+    text-align: center;
+  }
+  /* 파도 애니메이션 */
+  .led::before {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    background: conic-gradient(from 0deg, var(--led-a), var(--led-b), var(--led-c), var(--led-a));
+    filter: blur(40px);
+    opacity: .28;
+    animation: spin 12s linear infinite;
+    animation-play-state: paused;
+  }
+  .running .led::before { animation-play-state: running; opacity: .45; }
+  /* LED 도트 격자 */
+  .led::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.55) 35%, transparent 36%);
+    background-size: 4px 4px;
+    pointer-events: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .display {
+    position: relative;
+    z-index: 1;
+    font-family: "Consolas", "SF Mono", ui-monospace, monospace;
+    font-size: clamp(42px, 13vw, 66px);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    color: #fff;
+    text-shadow: 0 0 8px var(--led-a), 0 0 24px var(--led-b);
+  }
+  .display .ms { color: var(--led-a); font-size: .6em; }
+  .ticker {
+    position: relative;
+    z-index: 1;
+    margin-top: 10px;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--led-a);
+    opacity: .8;
+  }
+
+  /* ── 버튼 ── */
+  .controls { display: flex; gap: 10px; margin-top: 18px; }
+  button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    border-radius: 12px;
+    border: 1px solid var(--glass-line);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
+    cursor: pointer;
+    transition: transform .1s, opacity .15s, box-shadow .2s;
+  }
+  button:hover:not(:disabled) { box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+  button:active:not(:disabled) { transform: scale(.97); }
+  button:disabled { opacity: .35; cursor: default; }
+  #startBtn {
+    border: none;
+    background: linear-gradient(135deg, var(--led-a), var(--led-b));
+    color: #05060b;
+    box-shadow: 0 0 20px rgba(61, 242, 255, 0.35);
+  }
+  #startBtn.running {
+    background: linear-gradient(135deg, var(--led-c), var(--led-b));
+    color: #fff;
+    box-shadow: 0 0 20px rgba(255, 79, 163, 0.4);
+  }
+  .hint { text-align: center; color: var(--muted); font-size: 11px; margin-top: 10px; }
+
+  /* ── 랩: 2호선 노선도 ── */
+  .laps {
+    list-style: none;
+    margin: 18px 0 0;
+    padding: 0;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .laps:empty { display: none; }
+  .laps li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 10px 4px 10px 30px;
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+  }
+  .laps li::before {             /* 노선 */
+    content: "";
+    position: absolute;
+    left: 10px; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--line2);
+  }
+  .laps li::after {              /* 역 */
+    content: "";
+    position: absolute;
+    left: 5px; top: 50%;
+    width: 14px; height: 14px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: var(--night);
+    border: 3px solid var(--line2);
+  }
+  .laps .st small { color: var(--muted); margin-right: 6px; font-size: 11px; }
+  .laps .tot { color: var(--muted); font-size: 12px; }
+  .laps li.best .st, .laps li.best .split { color: var(--best); }
+  .laps li.worst .st, .laps li.worst .split { color: var(--worst); }
+
+  /* ── 별마당 도서관 책장 ── */
+  .library {
+    margin-top: 18px;
+    height: 54px;
+    border-radius: 6px;
+    background:
+      repeating-linear-gradient(90deg,
+        #c9864d 0 6px, #8d4f2b 6px 9px, #e3b47a 9px 16px, #5f6f8a 16px 20px,
+        #a46a3e 20px 27px, #d9c3a0 27px 31px, #7a3e2a 31px 38px, #3f5a4e 38px 42px),
+      var(--wood);
+    border-top: 5px solid var(--wood);
+    border-bottom: 7px solid var(--wood-dark);
+    box-shadow: 0 0 24px rgba(227, 180, 122, 0.18), inset 0 6px 8px rgba(0,0,0,.35);
+  }
+  .caption { text-align: center; color: var(--muted); font-size: 11px; margin-top: 8px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="station">
+      <div class="side prev" id="prevSt">← 선릉</div>
+      <div class="center">
+        <div class="num">2</div>
+        <div class="name" id="curSt">삼성<small>코엑스</small></div>
+      </div>
+      <div class="side next" id="nextSt">종합운동장 →</div>
+    </div>
+
+    <div class="card" id="card">
+      <div class="brand">
+        <b>COEX</b>
+        <span>STOPWATCH · 영동대로 513</span>
+      </div>
+
+      <div class="led">
+        <div class="display" id="display">00:00<span class="ms">.00</span></div>
+        <div class="ticker" id="ticker">K-POP SQUARE · READY</div>
+      </div>
+
+      <div class="controls">
+        <button id="lapBtn" disabled>랩</button>
+        <button id="startBtn">시작</button>
+        <button id="resetBtn" disabled>리셋</button>
+      </div>
+      <div class="hint">Space: 시작/정지 · L: 랩 · R: 리셋</div>
+
+      <ul class="laps" id="laps"></ul>
+
+      <div class="library"></div>
+      <div class="caption">STARFIELD LIBRARY</div>
+    </div>
+  </div>
+
+<script>
+  const display = document.getElementById('display');
+  const ticker = document.getElementById('ticker');
+  const card = document.getElementById('card');
+  const startBtn = document.getElementById('startBtn');
+  const lapBtn = document.getElementById('lapBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const lapList = document.getElementById('laps');
+  const prevSt = document.getElementById('prevSt');
+  const curSt = document.getElementById('curSt');
+  const nextSt = document.getElementById('nextSt');
+
+  // 2호선 외선순환, 삼성에서 출발
+  const LINE2 = ['삼성', '종합운동장', '삼성', '잠실', '잠실나루', '강변', '구의', '건대입구',
+    '성수', '뚝섬', '한양대', '왕십리', '상왕십리', '신당', '동대문역사문화공원', '을지로4가',
+    '을지로3가', '을지로입구', '시청', '충정로', '아현', '이대', '신촌', '홍대입구', '합정',
+    '당산', '영등포구청', '문래', '신도림', '대림', '구로디지털단지', '신대방', '신림', '봉천',
+    '서울대입구', '낙성대', '사당', '방배', '서초', '교대', '강남', '역삼', '선릉'];
+  const station = i => LINE2[((i % LINE2.length) + LINE2.length) % LINE2.length];
+
+  let running = false;
+  let startTime = 0;   // 현재 구간 시작 시각
+  let elapsed = 0;     // 정지 전까지 누적된 시간
+  let lastLapTotal = 0;
+  let laps = [];
+  let rafId = null;
+
+  function now() { return performance.now(); }
+  function total() { return running ? elapsed + (now() - startTime) : elapsed; }
+
+  function format(ms, html) {
+    const cs = Math.floor(ms / 10) % 100;
+    const s = Math.floor(ms / 1000) % 60;
+    const m = Math.floor(ms / 60000) % 60;
+    const h = Math.floor(ms / 3600000);
+    const pad = n => String(n).padStart(2, '0');
+    const main = (h ? h + ':' : '') + pad(m) + ':' + pad(s);
+    return html ? `${main}<span class="ms">.${pad(cs)}</span>` : `${main}.${pad(cs)}`;
+  }
+
+  function render() {
+    display.innerHTML = format(total(), true);
+    if (running) rafId = requestAnimationFrame(render);
+  }
+
+  function renderStation() {
+    const i = laps.length;
+    prevSt.textContent = '← ' + station(i - 1);
+    const name = station(i);
+    curSt.innerHTML = name === '삼성' ? '삼성<small>코엑스</small>' : name;
+    nextSt.textContent = station(i + 1) + ' →';
+  }
+
+  function renderLaps() {
+    lapList.innerHTML = '';
+    const times = laps.map(l => l.split);
+    const min = Math.min(...times), max = Math.max(...times);
+    laps.slice().reverse().forEach(lap => {
+      const li = document.createElement('li');
+      if (laps.length > 1 && lap.split === min) li.className = 'best';
+      if (laps.length > 1 && lap.split === max) li.className = 'worst';
+      li.innerHTML = `<span class="st"><small>랩 ${lap.n}</small>${station(lap.n)}</span>` +
+        `<span class="split">${format(lap.split)}</span><span class="tot">${format(lap.total)}</span>`;
+      lapList.appendChild(li);
+    });
+    renderStation();
+  }
+
+  function toggle() {
+    if (running) {
+      elapsed += now() - startTime;
+      running = false;
+      cancelAnimationFrame(rafId);
+      startBtn.textContent = '계속';
+      startBtn.classList.remove('running');
+      ticker.textContent = 'K-POP SQUARE · PAUSED';
+    } else {
+      startTime = now();
+      running = true;
+      startBtn.textContent = '정지';
+      startBtn.classList.add('running');
+      ticker.textContent = 'K-POP SQUARE · NOW PLAYING';
+      render();
+    }
+    card.classList.toggle('running', running);
+    lapBtn.disabled = !running;
+    resetBtn.disabled = running || elapsed === 0;
+  }
+
+  function lap() {
+    if (!running) return;
+    const t = total();
+    laps.push({ n: laps.length + 1, split: t - lastLapTotal, total: t });
+    lastLapTotal = t;
+    renderLaps();
+  }
+
+  function reset() {
+    if (running) return;
+    elapsed = 0;
+    lastLapTotal = 0;
+    laps = [];
+    lapList.innerHTML = '';
+    startBtn.textContent = '시작';
+    resetBtn.disabled = true;
+    ticker.textContent = 'K-POP SQUARE · READY';
+    renderStation();
+    render();
+  }
+
+  startBtn.addEventListener('click', toggle);
+  lapBtn.addEventListener('click', lap);
+  resetBtn.addEventListener('click', reset);
+
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'l' || e.key === 'L') lap();
+    else if (e.key === 'r' || e.key === 'R') reset();
+  });
+</script>
+</body>
+</html>
